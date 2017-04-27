@@ -1,32 +1,21 @@
 import React, { Component, PropTypes } from 'react';
 import Image from './Image';
 import ChoicesEdit from './ChoicesEdit';
-import {Row, Col, Button} from 'react-materialize';
-import { connect } from 'react-redux';
+import {Button} from 'react-materialize';
 import ReactCSSTransitionGroup from 'react-addons-css-transition-group';
 import NavBar from './NavBar';
 import { Link } from 'react-router-dom';
 import StoryChart from './StoryChart';
 
-
-
-
-
 class NewPanelForm extends Component{
+
   static contextTypes = {
     router: PropTypes.object
   };
+
    constructor(props) {
     super(props);
-    this.chartEvents = [
-      {
-        eventName: 'select',
-        callback(Chart) {
-            // Returns Chart so you can access props and  the ChartWrapper object from chart.wrapper
-          console.log('Selected ', Chart.chart.getSelection());
-        },
-      },
-    ];
+
     this.handleImageSubmit = this.handleImageSubmit.bind(this);
     this.handleBodyTextChange = this.handleBodyTextChange.bind(this)
     this.handleImageChange = this.handleImageChange.bind(this)
@@ -34,6 +23,7 @@ class NewPanelForm extends Component{
     this.handleChoiceBodyTextChange = this.handleChoiceBodyTextChange.bind(this)
     this.handleChoiceSubmit = this.handleChoiceSubmit.bind(this)
     this.handleChoiceAdd = this.handleChoiceAdd.bind(this)
+    this.handleDelete = this.handleDelete.bind(this)
 
     this.state = {
       choices: [],
@@ -42,7 +32,8 @@ class NewPanelForm extends Component{
       story_id: "",
       image: "",
       index: "",
-      choice: ''
+      choice: "",
+      display: "none"
 
     };
   }
@@ -60,7 +51,7 @@ class NewPanelForm extends Component{
 
 
                       })
-        console.log("bt", this.state.panel_id)
+
 
     })
     .catch(err => console.log(err))
@@ -70,8 +61,11 @@ class NewPanelForm extends Component{
       return fetch(`/stories/${this.props.match.params.storyid}/panels/${this.props.match.params.panelid}/choices`)
       .then((response) => response.json())
       .then((data) => {
-        console.log(data.data)
+
         this.setState({choices: data.data})
+        if (this.state.choices.length === 0){
+          this.setState({display: "inline"})
+        }
       })
       .catch(err => console.log(err))
 
@@ -101,6 +95,7 @@ class NewPanelForm extends Component{
           this.setState({panelid: json.data})
         })
     }
+
    handleChoiceAdd = (event) => {
     event.preventDefault()
     var data = {choice: {
@@ -118,6 +113,7 @@ class NewPanelForm extends Component{
     }).then(json => {
       console.log('choices', data)
         this.setState({new_choice_body_text: ""})
+        this.setState({display: "none"})
           this.getChoices()
         })
   }
@@ -136,8 +132,6 @@ class NewPanelForm extends Component{
         event.preventDefault()
 
     }
-
-
 
     handleChoiceChange(event) {
 
@@ -159,8 +153,6 @@ class NewPanelForm extends Component{
       }
     }
 
-
-
     handleBodyTextSubmit(event) {
 
     event.preventDefault()
@@ -177,6 +169,23 @@ class NewPanelForm extends Component{
       body: JSON.stringify(data)
     })
   }
+    handleDelete(event) {
+
+      event.preventDefault()
+      var data = {panel: {
+        "id": this.state.panel_id
+      }}
+      console.log(data);
+      fetch(`/stories/${this.state.story_id}/panels/${this.state.panel_id}`, {
+        headers: {'Content-Type': 'application/json'},
+          method: "DELETE",
+          body: JSON.stringify(data)
+        }).then(json => {
+          console.log(data)
+          window.location.assign(`/stories/${this.state.story_id}`)
+
+        })
+    }
 
 
   render(){
@@ -224,6 +233,7 @@ class NewPanelForm extends Component{
                        handleChoiceChange={this.handleChoiceChange}
                        story_id={this.state.story_id}
                        panel_id={this.state.panel_id}
+                       handleChoiceAdd={this.handleChoiceAdd}
                         />
 
       <div className="back-btn">
@@ -231,6 +241,7 @@ class NewPanelForm extends Component{
         <Button>Back to the Chart!</Button>
         </Link>
       </div>
+      <Button className="delete-btn" onClick={this.handleDelete} style={{display: this.state.display}}>Delete this Panel</Button>
     </div>
 
   </ReactCSSTransitionGroup>
@@ -240,18 +251,7 @@ class NewPanelForm extends Component{
 }
 
 
-function mapStateToProps(state) {
-
-  return{panel: state.panel.panel,
-         choices: state.choices.choices};
-
-
-}
-
-
-
-
-export default connect(mapStateToProps)(NewPanelForm);
+export default NewPanelForm;
 
 
 
