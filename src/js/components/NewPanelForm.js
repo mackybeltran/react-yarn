@@ -1,17 +1,15 @@
-import React, { Component, PropTypes } from 'react';
-import Image from './Image';
+import React, { Component } from 'react';
 import ChoicesEdit from './ChoicesEdit';
 import {Button} from 'react-materialize';
 import ReactCSSTransitionGroup from 'react-addons-css-transition-group';
 import NavBar from './NavBar';
 import { Link } from 'react-router-dom';
 import StoryChart from './StoryChart';
+import Draggable from 'react-draggable';
+
 
 class NewPanelForm extends Component{
 
-  static contextTypes = {
-    router: PropTypes.object
-  };
 
    constructor(props) {
     super(props);
@@ -24,6 +22,9 @@ class NewPanelForm extends Component{
     this.handleChoiceSubmit = this.handleChoiceSubmit.bind(this)
     this.handleChoiceAdd = this.handleChoiceAdd.bind(this)
     this.handleDelete = this.handleDelete.bind(this)
+    this.handleImageResizeAndMove = this.handleImageResizeAndMove.bind(this)
+    this.handleDrag = this.handleDrag.bind(this)
+    this.handleImageReposition = this.handleImageReposition.bind(this)
 
     this.state = {
       choices: [],
@@ -33,7 +34,14 @@ class NewPanelForm extends Component{
       image: "",
       index: "",
       choice: "",
-      display: "none"
+      display: "none",
+      image_height: "",
+      image_width: "",
+      position: {
+        x: 0, y: 0
+      }
+
+
 
     };
   }
@@ -47,11 +55,11 @@ class NewPanelForm extends Component{
                        panel_id: data.data.id,
                        story_id: data.data.story_id,
                        image: data.data.image,
-                       index: data.data.index
-
-
+                       index: data.data.index,
+                       image_height: data.data.image_height,
+                       image_width: data.data.image_width,
+                       position: {x: data.data.image_position_x, y: data.data.image_position_y}
                       })
-
 
     })
     .catch(err => console.log(err))
@@ -124,6 +132,46 @@ class NewPanelForm extends Component{
     handleImageChange(event) {
       this.setState({image: event.target.value});
     }
+
+    handleImageResizeAndMove(event) {
+      const width = event.target.style.width.toString()
+      const height = event.target.style.height.toString()
+      const data = {panel: {
+        "id": this.state.panel_id,
+        "image_width": width,
+        "image_height": height
+      }}
+
+      console.log(width, height)
+      console.log(event.target.style)
+      if (width != 0 && height !=0) {this.setState({image_width: width,
+                                                image_height: height })
+
+      fetch(`/stories/${this.state.story_id}/panels/${this.state.panel_id}`, {
+        headers: {'Content-Type': 'application/json'},
+        method: "PUT",
+        body: JSON.stringify(data)
+        })
+      }
+    }
+
+    handleImageReposition(){
+
+      const data = {panel : {
+        "id": this.state.panel_id,
+        "image_position_x": this.state.position.x,
+        "image_position_y": this.state.position.y
+      }}
+
+      console.log(data)
+      fetch(`/stories/${this.state.story_id}/panels/${this.state.panel_id}`, {
+        headers: {'Content-Type': 'application/json'},
+        method: "PUT",
+        body: JSON.stringify(data)
+        })
+    }
+
+
     handleChoiceBodyTextChange(event) {
       this.setState({new_choice_body_text: event.target.value})
     }
@@ -187,10 +235,64 @@ class NewPanelForm extends Component{
         })
     }
 
+    handleDrag(e, ui) {
+
+      console.log(ui)
+      this.setState({
+        position: {
+          x: ui.x,
+          y: ui.y,
+        }
+
+      });
+      console.log(this.state.position)
+    }
+
 
   render(){
+    const imageStyle = {
+      height: this.state.image_height,
+      width: this.state.image_width,
+      transform: "translate(500px, 0px)"
+    }
+
+    //Start code for enabling resize of image div to smaller than starting size
+    //see http://stackoverflow.com/questions/18178301/how-can-i-use-css-resize-to-resize-an-element-to-a-height-width-less-than-init
+    function resizableStart(e){
+      this.originalW = this.clientWidth;
+      this.originalH = this.clientHeight;
+      this.onmousemove = resizableCheck;
+      this.onmouseup = this.onmouseout = resizableEnd;
+    }
+    function resizableCheck(e){
+      if(this.clientWidth !== this.originalW || this.clientHeight !== this.originalH) {
+          this.originalX = e.clientX;
+          this.originalY = e.clientY;
+          this.onmousemove = resizableMove;
+     }
+    }
+    function resizableMove(e){
+      var newW = this.originalW + e.clientX - this.originalX,
+          newH = this.originalH + e.clientY - this.originalY;
+      if(newW < this.originalW){
+          this.style.width = newW + 'px';
+      }
+      if(newH < this.originalH){
+          this.style.height = newH + 'px';
+      }
+    }
+    function resizableEnd(){
+      this.onmousemove = this.onmouseout = this.onmouseup = null;
+    }
+    var els = document.getElementsByClassName('resizable');
+      for(var i=0, len=els.length; i<len; ++i){
+      els[i].onmouseover = resizableStart;
+      }
+    //end of smaller resize code.
+
+
     return(
-    <div>
+    <div className="container">
       <NavBar/>
               <ReactCSSTransitionGroup
           transitionName="example"
@@ -200,21 +302,27 @@ class NewPanelForm extends Component{
           transitionEnterTimeout={600}
           transitionLeave={false}>
 
-      <div>
-      <div className="mini-panel">
-          <Image image={this.state.image} />
 
-        <div className="panel-form">
+      <div>
+              <div className="panel-form">
           <form className="form" onSubmit={this.handleImageSubmit}>
             <label>
-              Image:
-              <input type="text" value={this.state.image} onChange={this.handleImageChange}  />
+              <input type="text" value={this.state.image}  />
             </label>
             <input className="waves-effect waves-light btn" type="submit" value="Submit" />
           </form>
         </div>
-
+        <div onMouseUp={this.handleImageResizeAndMove}>
+        <Draggable handle="strong" onDrag={this.handleDrag} position={this.state.position} onStop={this.handleImageReposition} >
+        <div className="image-frame resizable"  style={imageStyle}  >
+          <strong className="cursor"><div>Drag here</div></strong>
+          <img src={this.state.image} className="panel-img" alt="Story"/>
         </div>
+        </Draggable>
+        </div>
+
+      </div>
+
 
       <div>
 
@@ -242,7 +350,7 @@ class NewPanelForm extends Component{
         </Link>
       </div>
       <Button className="delete-btn" onClick={this.handleDelete} style={{display: this.state.display}}>Delete this Panel</Button>
-    </div>
+
 
   </ReactCSSTransitionGroup>
   </div>
